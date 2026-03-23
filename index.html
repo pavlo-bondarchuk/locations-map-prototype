@@ -1,0 +1,1589 @@
+<!DOCTYPE html>
+<html lang="uk">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Locations Map Prototype</title>
+  <link rel="preconnect" href="https://unpkg.com">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+  <style>
+    :root {
+      --bg: #eef3f8;
+      --panel: rgba(255, 255, 255, 0.96);
+      --panel-2: #ffffff;
+      --text: #16324f;
+      --muted: #67809a;
+      --line: #d7e2ee;
+      --blue: #2f7ec7;
+      --blue-dark: #1d68ad;
+      --blue-soft: #eaf4ff;
+      --green: #1f9d55;
+      --shadow: 0 18px 42px rgba(11, 44, 82, 0.16);
+      --radius-xl: 24px;
+      --radius-lg: 18px;
+      --radius-md: 14px;
+      --radius-sm: 10px;
+      --transition: 180ms ease;
+      --max: 1440px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: Inter, Arial, sans-serif;
+      background: linear-gradient(180deg, #f4f8fc 0%, #ebf1f7 100%);
+      color: var(--text);
+    }
+
+    body {
+      min-height: 100vh;
+    }
+
+    a {
+      color: var(--blue-dark);
+      text-decoration: none;
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    .page {
+      width: min(100%, var(--max));
+      margin: 0 auto;
+      padding: 20px 20px 56px;
+    }
+
+    .hero {
+      position: relative;
+      border-radius: 30px;
+      overflow: hidden;
+      background: #dfe9f3;
+      box-shadow: var(--shadow);
+      min-height: 74vh;
+    }
+
+    .map {
+      height: 74vh;
+      min-height: 620px;
+      width: 100%;
+      background:
+        radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.55) 0 2px, transparent 2px 100%),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.15) 1px, transparent 1px),
+        linear-gradient(rgba(255, 255, 255, 0.15) 1px, transparent 1px),
+        linear-gradient(180deg, #d7e7f6 0%, #c8ddef 100%);
+      background-size: 120px 120px, 48px 48px, 48px 48px, auto;
+    }
+
+    .map-fallback-note {
+      position: absolute;
+      right: 18px;
+      bottom: 18px;
+      z-index: 620;
+      max-width: 320px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.94);
+      border: 1px solid rgba(199, 215, 232, 0.9);
+      box-shadow: 0 12px 24px rgba(11, 44, 82, 0.12);
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+      display: none;
+    }
+
+    .map-fallback-note.is-visible {
+      display: block;
+    }
+
+    .topbar {
+      position: absolute;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 700;
+      width: min(860px, calc(100% - 270px));
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      padding: 14px;
+      border-radius: 22px;
+      background: rgba(255, 255, 255, 0.94);
+      border: 1px solid rgba(199, 215, 232, 0.95);
+      box-shadow: 0 16px 32px rgba(7, 44, 92, 0.12);
+      backdrop-filter: blur(8px);
+    }
+
+    .search-wrap {
+      flex: 1 1 auto;
+      position: relative;
+    }
+
+    .search-input {
+      width: 100%;
+      height: 52px;
+      border-radius: 16px;
+      border: 1px solid var(--line);
+      padding: 0 48px 0 16px;
+      background: #fff;
+      color: var(--text);
+      outline: none;
+      transition: border-color var(--transition), box-shadow var(--transition);
+    }
+
+    .search-input:focus {
+      border-color: rgba(47, 126, 199, 0.6);
+      box-shadow: 0 0 0 4px rgba(47, 126, 199, 0.12);
+    }
+
+    .search-icon {
+      position: absolute;
+      right: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--muted);
+      pointer-events: none;
+      font-size: 18px;
+    }
+
+    .controls {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .button {
+      height: 52px;
+      border: 0;
+      border-radius: 16px;
+      padding: 0 18px;
+      cursor: pointer;
+      transition: transform var(--transition), background var(--transition), box-shadow var(--transition);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      white-space: nowrap;
+    }
+
+    .button:hover {
+      transform: translateY(-1px);
+    }
+
+    .button:active {
+      transform: translateY(0);
+    }
+
+    .button-primary {
+      background: linear-gradient(180deg, #3d8ddb 0%, #2f7ec7 100%);
+      color: #fff;
+      box-shadow: 0 12px 24px rgba(47, 126, 199, 0.22);
+    }
+
+    .button-secondary {
+      background: #f7fbff;
+      color: var(--blue-dark);
+      border: 1px solid var(--line);
+    }
+
+    .floating-list {
+      position: absolute;
+      top: auto;
+      bottom: -50px;
+      left: 20px;
+      z-index: 650;
+      width: 320px;
+      max-height: calc(100% - 90px);
+      min-height: 200px;
+      background: var(--panel);
+      border: 1px solid rgba(199, 215, 232, 0.9);
+      border-radius: 22px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .panel-head {
+      padding: 18px 18px 10px;
+      border-bottom: 1px solid rgba(215, 226, 238, 0.8);
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(249, 252, 255, 0.94) 100%);
+    }
+
+    .eyebrow {
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+
+    .panel-title {
+      font-size: 24px;
+      line-height: 1.1;
+      font-weight: 700;
+      margin: 0 0 8px;
+    }
+
+    .panel-meta {
+      color: var(--muted);
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: var(--blue-soft);
+      color: var(--blue-dark);
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .list-scroll {
+      overflow: auto;
+      padding: 12px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .location-item {
+      border: 1px solid transparent;
+      border-radius: 16px;
+      padding: 14px;
+      background: #fff;
+      cursor: pointer;
+      transition: border-color var(--transition), transform var(--transition), box-shadow var(--transition);
+      box-shadow: 0 10px 22px rgba(17, 63, 110, 0.06);
+    }
+
+    .location-item:hover {
+      transform: translateY(-1px);
+      border-color: rgba(47, 126, 199, 0.28);
+    }
+
+    .location-item.is-active {
+      border-color: rgba(47, 126, 199, 0.72);
+      background: #f7fbff;
+      box-shadow: 0 12px 28px rgba(47, 126, 199, 0.15);
+    }
+
+    .location-item h3 {
+      margin: 0 0 8px;
+      font-size: 17px;
+      line-height: 1.25;
+      color: var(--blue-dark);
+    }
+
+    .location-row {
+      font-size: 13px;
+      line-height: 1.45;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    .location-row strong {
+      color: var(--text);
+    }
+
+    .location-tags {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+
+    .tag {
+      border-radius: 999px;
+      background: #edf5fc;
+      color: #40627f;
+      padding: 5px 8px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .gear-button {
+      position: fixed;
+      left: 18px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 76px;
+      height: 76px;
+      border: 0;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.95);
+      border: 2px solid rgba(199, 215, 232, 0.96);
+      box-shadow: 0 18px 34px rgba(7, 44, 92, 0.14);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 800;
+      cursor: pointer;
+      transition: transform var(--transition), box-shadow var(--transition);
+    }
+
+    .gear-button:hover {
+      transform: translateY(calc(-50% - 2px));
+      box-shadow: 0 20px 38px rgba(7, 44, 92, 0.2);
+    }
+
+    .gear-button svg {
+      width: 36px;
+      height: 36px;
+      stroke: #162339;
+    }
+
+    .legend-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(10, 23, 39, 0.48);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity var(--transition);
+      z-index: 890;
+    }
+
+    .legend-backdrop.is-open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .legend-panel {
+      position: fixed;
+      inset: 0 auto 0 0;
+      width: min(460px, 100%);
+      background: #ffffff;
+      box-shadow: 18px 0 40px rgba(9, 34, 59, 0.18);
+      transform: translateX(-104%);
+      transition: transform 240ms ease;
+      z-index: 900;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .legend-panel.is-open {
+      transform: translateX(0);
+    }
+
+    .legend-head {
+      padding: 28px 24px 18px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: flex-start;
+    }
+
+    .legend-head h2 {
+      margin: 0 0 8px;
+      font-size: 28px;
+    }
+
+    .legend-body {
+      padding: 22px 24px 28px;
+      overflow: auto;
+      display: grid;
+      gap: 22px;
+    }
+
+    .legend-section {
+      display: grid;
+      gap: 10px;
+    }
+
+    .legend-section h3 {
+      margin: 0;
+      font-size: 17px;
+    }
+
+    .legend-section p,
+    .legend-section li {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.55;
+      font-size: 14px;
+    }
+
+    .legend-list {
+      display: grid;
+      gap: 8px;
+      padding-left: 18px;
+      margin: 0;
+    }
+
+    .legend-field {
+      display: grid;
+      gap: 8px;
+    }
+
+    .legend-field label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .legend-field input {
+      height: 48px;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      padding: 0 14px;
+      outline: none;
+    }
+
+    .legend-note {
+      padding: 14px 16px;
+      border-radius: 14px;
+      background: #f7fbff;
+      border: 1px solid #dceafb;
+      color: #53718f;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .legend-close {
+      border: 0;
+      background: #f4f8fc;
+      color: var(--text);
+      width: 42px;
+      height: 42px;
+      border-radius: 999px;
+      cursor: pointer;
+      font-size: 22px;
+    }
+
+    .section {
+      margin-top: 26px;
+      background: rgba(255, 255, 255, 0.82);
+      border: 1px solid rgba(199, 215, 232, 0.9);
+      border-radius: 26px;
+      box-shadow: 0 18px 42px rgba(11, 44, 82, 0.09);
+      padding: 22px;
+    }
+
+    .section-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: flex-end;
+      margin-bottom: 18px;
+      flex-wrap: wrap;
+    }
+
+    .section-title {
+      margin: 0;
+      font-size: 28px;
+    }
+
+    .section-subtitle {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .cards {
+      display: grid;
+      gap: 16px;
+    }
+
+    .cards.cards-3 {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .cards.cards-auto {
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 20px;
+      border: 1px solid rgba(215, 226, 238, 0.96);
+      box-shadow: 0 12px 26px rgba(11, 44, 82, 0.08);
+      padding: 18px;
+      transition: transform var(--transition), border-color var(--transition), box-shadow var(--transition);
+      cursor: pointer;
+    }
+
+    .card:hover {
+      transform: translateY(-2px);
+      border-color: rgba(47, 126, 199, 0.32);
+    }
+
+    .card.is-active {
+      border-color: rgba(47, 126, 199, 0.72);
+      background: #f8fbff;
+      box-shadow: 0 16px 32px rgba(47, 126, 199, 0.14);
+    }
+
+    .card-title {
+      margin: 0 0 8px;
+      font-size: 20px;
+      color: var(--blue-dark);
+    }
+
+    .card-line {
+      margin: 0 0 8px;
+      font-size: 14px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .card-foot {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      margin-top: 14px;
+      flex-wrap: wrap;
+    }
+
+    .distance {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 8px 12px;
+      background: #eef7ef;
+      color: #246f45;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .muted {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .empty-state {
+      padding: 28px;
+      border-radius: 18px;
+      border: 1px dashed var(--line);
+      background: linear-gradient(180deg, #f9fcff 0%, #f4f8fc 100%);
+      color: var(--muted);
+      font-size: 15px;
+    }
+
+    .mobile-list-toggle {
+      display: none;
+      position: absolute;
+      left: 16px;
+      bottom: 16px;
+      z-index: 650;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.92);
+      border: 1px solid rgba(199, 215, 232, 0.9);
+      box-shadow: 0 12px 26px rgba(11, 44, 82, 0.08);
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: #9fb4c7;
+    }
+
+    .status-dot.is-on {
+      background: var(--green);
+    }
+
+    .leaflet-popup-content-wrapper {
+      border-radius: 16px;
+      box-shadow: 0 14px 30px rgba(11, 44, 82, 0.16);
+    }
+
+    .leaflet-popup-content {
+      margin: 14px 16px;
+      line-height: 1.5;
+      color: var(--text);
+      min-width: 200px;
+    }
+
+    .leaflet-container a.leaflet-popup-close-button {
+      padding: 10px 12px 0 0;
+      color: var(--text);
+    }
+
+    .leaflet-control-attribution {
+      font-size: 11px;
+    }
+
+    @media (max-width: 1180px) {
+      .topbar {
+        width: calc(100% - 290px);
+      }
+
+      .cards.cards-3 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 980px) {
+      .page {
+        padding-left: 16px;
+        padding-right: 16px;
+      }
+
+      .map,
+      .hero {
+        min-height: 560px;
+      }
+
+      .topbar {
+        left: 16px;
+        right: 16px;
+        width: auto;
+        transform: none;
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .controls {
+        width: 100%;
+      }
+
+      .controls .button {
+        flex: 1 1 0;
+      }
+
+      .floating-list {
+        left: 16px;
+        bottom: 72px;
+        width: min(340px, calc(100% - 32px));
+        max-height: calc(74vh - 180px);
+      }
+
+      .cards.cards-3 {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .gear-button {
+        width: 64px;
+        height: 64px;
+        left: 12px;
+      }
+
+      .gear-button svg {
+        width: 30px;
+        height: 30px;
+      }
+
+      .hero {
+        border-radius: 24px;
+      }
+
+      .map {
+        height: 66vh;
+        min-height: 480px;
+      }
+
+      .floating-list {
+        top: auto;
+        left: 10px;
+        right: 10px;
+        bottom: 72px;
+        width: auto;
+        max-height: 56vh;
+        transform: translateY(120%);
+        transition: transform 220ms ease;
+      }
+
+      .floating-list.is-open-mobile {
+        transform: translateY(0);
+      }
+
+      .mobile-list-toggle {
+        display: inline-flex;
+      }
+
+      .section {
+        padding: 18px;
+        border-radius: 22px;
+      }
+
+      .section-title {
+        font-size: 24px;
+      }
+
+      .cards.cards-auto {
+        grid-template-columns: 1fr;
+      }
+
+      .legend-panel {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <button class="gear-button" id="gearButton" aria-label="Open legend and settings" type="button">
+    <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"
+      aria-hidden="true">
+      <circle cx="12" cy="12" r="3.5"></circle>
+      <path
+        d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1-1.55 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.55-1H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.64 9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.64a1.7 1.7 0 0 0 1-1.55V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.36 9a1.7 1.7 0 0 0 1.55 1H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.55 1z">
+      </path>
+    </svg>
+  </button>
+
+  <div class="legend-backdrop" id="legendBackdrop"></div>
+
+  <aside class="legend-panel" id="legendPanel" aria-hidden="true">
+    <div class="legend-head">
+      <div>
+        <div class="eyebrow">Legend + settings</div>
+        <h2>Map legend</h2>
+        <p class="section-subtitle">Static legend for the free map provider used in this prototype.</p>
+      </div>
+      <button class="legend-close" id="legendClose" type="button" aria-label="Close legend">×</button>
+    </div>
+
+    <div class="legend-body">
+      <section class="legend-section">
+        <h3>What this prototype does</h3>
+        <ul class="legend-list">
+          <li>Works as a one-file prototype without page reloads.</li>
+          <li>Uses Leaflet + OpenStreetMap with no API key required.</li>
+          <li>Supports local search, browser geolocation, nearest locations, and URL state.</li>
+          <li>Single-select location behavior syncs map, list, and cards.</li>
+        </ul>
+      </section>
+
+      <section class="legend-section">
+        <h3>Marker legend</h3>
+        <ul class="legend-list">
+          <li><strong>Blue marker:</strong> regular location.</li>
+          <li><strong>Highlighted blue marker:</strong> selected location.</li>
+          <li><strong>Green status:</strong> geolocation is active.</li>
+        </ul>
+      </section>
+
+
+
+      <section class="legend-section">
+        <h3>URL behavior</h3>
+        <p>Search text, selected location, and current map view are saved to GET params through
+          <strong>replaceState</strong>, so the URL can be shared without reloading the page.</p>
+      </section>
+    </div>
+  </aside>
+
+  <main class="page">
+    <section class="hero">
+      <div class="topbar">
+        <div class="search-wrap">
+          <input class="search-input" id="searchInput" type="text"
+            placeholder="Search by name, address, city, state, or ZIP">
+          <span class="search-icon">⌕</span>
+        </div>
+
+        <div class="controls">
+          <button class="button button-primary" id="useLocationBtn" type="button">Use my location</button>
+          <button class="button button-secondary" id="resetBtn" type="button">Reset</button>
+        </div>
+      </div>
+
+      <aside class="floating-list" id="floatingList">
+        <div class="panel-head">
+          <div class="eyebrow">Live results</div>
+          <h1 class="panel-title">Locations</h1>
+          <div class="panel-meta">
+            <span class="badge" id="resultsCountBadge">0 results</span>
+            <span class="status-pill">
+              <span class="status-dot" id="geoStatusDot"></span>
+              <span id="geoStatusText">Geolocation off</span>
+            </span>
+          </div>
+        </div>
+        <div class="list-scroll" id="listScroll"></div>
+      </aside>
+
+      <button class="button button-secondary mobile-list-toggle" id="mobileListToggle" type="button">Locations
+        list</button>
+
+      <div id="map" class="map"></div>
+      <div class="map-fallback-note" id="mapFallbackNote">
+        Tile layer is disabled in local file mode or after tile blocking. The prototype still keeps markers, search,
+        selection, and nearest-location logic working without the 403 overlay.
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-head">
+        <div>
+          <h2 class="section-title">Nearest locations</h2>
+          <p class="section-subtitle" id="nearestSubtitle">Based on your browser geolocation when available, otherwise
+            based on the current map center.</p>
+        </div>
+      </div>
+      <div class="cards cards-3" id="nearestGrid"></div>
+    </section>
+
+    <section class="section">
+      <div class="section-head">
+        <div>
+          <h2 class="section-title">Locations overview</h2>
+          <p class="section-subtitle" id="overviewSubtitle">All locations are shown by default. Search or URL params
+            will narrow the list without reloading the page.</p>
+        </div>
+      </div>
+      <div class="cards cards-auto" id="allLocationsGrid"></div>
+    </section>
+  </main>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script>
+    const LOCATIONS = [
+      {
+        id: "vida-brookhaven",
+        name: "Vida-Flo Brookhaven",
+        address: "205 Town Blvd NE",
+        city: "Atlanta",
+        state: "Georgia",
+        zip: "30319",
+        lat: 33.8727,
+        lng: -84.3346,
+        phone: "(404) 906-1088",
+        email: "brookhaven@vidaflo.com",
+        url: "#",
+        hours: "Mon-Sat 9:00-18:00",
+        description: "IV hydration therapy lounge near Town Brookhaven.",
+        services: ["IV Hydration", "Wellness", "Vitamin Therapy"],
+        featured: true
+      },
+      {
+        id: "vida-buckhead",
+        name: "Vida-Flo Buckhead",
+        address: "3200 Peachtree Rd NE",
+        city: "Atlanta",
+        state: "Georgia",
+        zip: "30305",
+        lat: 33.8425,
+        lng: -84.3778,
+        phone: "(404) 447-4372",
+        email: "buckhead@vidaflo.com",
+        url: "#",
+        hours: "Mon-Sun 9:00-19:00",
+        description: "Buckhead wellness and hydration location.",
+        services: ["IV Hydration", "NAD+", "Recovery"],
+        featured: false
+      },
+      {
+        id: "vida-decatur",
+        name: "Vida-Flo Decatur",
+        address: "431 W Ponce de Leon Ave",
+        city: "Decatur",
+        state: "Georgia",
+        zip: "30030",
+        lat: 33.7754,
+        lng: -84.3020,
+        phone: "(470) 225-6544",
+        email: "decatur@vidaflo.com",
+        url: "#",
+        hours: "Tue-Sat 10:00-18:00",
+        description: "Hydration therapy in downtown Decatur.",
+        services: ["IV Hydration", "Beauty Boost", "Energy"],
+        featured: false
+      },
+      {
+        id: "vida-johns-creek",
+        name: "Vida-Flo Johns Creek",
+        address: "11720 Medlock Bridge Rd",
+        city: "Johns Creek",
+        state: "Georgia",
+        zip: "30097",
+        lat: 34.0515,
+        lng: -84.2448,
+        phone: "(770) 212-1008",
+        email: "johnscreek@vidaflo.com",
+        url: "#",
+        hours: "Mon-Fri 9:00-17:00",
+        description: "North Atlanta suburb location for wellness support.",
+        services: ["IV Hydration", "Immunity", "Recovery"],
+        featured: false
+      },
+      {
+        id: "vida-charlotte",
+        name: "Vida-Flo Charlotte South End",
+        address: "1419 East Blvd",
+        city: "Charlotte",
+        state: "North Carolina",
+        zip: "28203",
+        lat: 35.2022,
+        lng: -80.8390,
+        phone: "(704) 555-1001",
+        email: "charlotte@vidaflo.com",
+        url: "#",
+        hours: "Mon-Sun 10:00-18:00",
+        description: "South End hydration lounge in Charlotte.",
+        services: ["IV Hydration", "Migraine Relief", "Recovery"],
+        featured: true
+      },
+      {
+        id: "vida-raleigh",
+        name: "Vida-Flo Raleigh",
+        address: "4209 Lassiter Mill Rd",
+        city: "Raleigh",
+        state: "North Carolina",
+        zip: "27609",
+        lat: 35.8257,
+        lng: -78.6497,
+        phone: "(919) 555-2020",
+        email: "raleigh@vidaflo.com",
+        url: "#",
+        hours: "Mon-Sat 9:00-18:00",
+        description: "North Hills area wellness studio.",
+        services: ["IV Hydration", "Detox", "Beauty Boost"],
+        featured: false
+      },
+      {
+        id: "vida-nashville",
+        name: "Vida-Flo Nashville Green Hills",
+        address: "2126 Abbott Martin Rd",
+        city: "Nashville",
+        state: "Tennessee",
+        zip: "37215",
+        lat: 36.1067,
+        lng: -86.8150,
+        phone: "(615) 555-3030",
+        email: "nashville@vidaflo.com",
+        url: "#",
+        hours: "Mon-Sun 9:00-19:00",
+        description: "Green Hills location for hydration and recovery.",
+        services: ["IV Hydration", "Recovery", "Wellness"],
+        featured: true
+      },
+      {
+        id: "vida-franklin",
+        name: "Vida-Flo Franklin",
+        address: "4031 Aspen Grove Dr",
+        city: "Franklin",
+        state: "Tennessee",
+        zip: "37067",
+        lat: 35.9445,
+        lng: -86.8167,
+        phone: "(615) 555-3031",
+        email: "franklin@vidaflo.com",
+        url: "#",
+        hours: "Tue-Sat 10:00-18:00",
+        description: "Franklin wellness clinic and hydration bar.",
+        services: ["IV Hydration", "Immunity", "Recovery"],
+        featured: false
+      },
+      {
+        id: "vida-knoxville",
+        name: "Vida-Flo Knoxville",
+        address: "7240 Kingston Pike",
+        city: "Knoxville",
+        state: "Tennessee",
+        zip: "37919",
+        lat: 35.9352,
+        lng: -84.0353,
+        phone: "(865) 555-4040",
+        email: "knoxville@vidaflo.com",
+        url: "#",
+        hours: "Mon-Fri 9:00-17:00",
+        description: "West Knoxville IV hydration and energy treatments.",
+        services: ["IV Hydration", "Energy", "NAD+"],
+        featured: false
+      }
+    ];
+
+    const DEFAULT_VIEW = {
+      lat: 35.85,
+      lng: -83.8,
+      zoom: 6
+    };
+
+    const state = {
+      query: "",
+      selectedId: null,
+      userCoords: null,
+      geolocationActive: false,
+      filteredLocations: [...LOCATIONS],
+      initializedFromUrl: false
+    };
+
+    const searchInput = document.getElementById("searchInput");
+    const useLocationBtn = document.getElementById("useLocationBtn");
+    const resetBtn = document.getElementById("resetBtn");
+    const listScroll = document.getElementById("listScroll");
+    const nearestGrid = document.getElementById("nearestGrid");
+    const allLocationsGrid = document.getElementById("allLocationsGrid");
+    const mapFallbackNote = document.getElementById("mapFallbackNote");
+    const overviewSubtitle = document.getElementById("overviewSubtitle");
+    const nearestSubtitle = document.getElementById("nearestSubtitle");
+    const resultsCountBadge = document.getElementById("resultsCountBadge");
+    const geoStatusDot = document.getElementById("geoStatusDot");
+    const geoStatusText = document.getElementById("geoStatusText");
+    const gearButton = document.getElementById("gearButton");
+    const legendPanel = document.getElementById("legendPanel");
+    const legendBackdrop = document.getElementById("legendBackdrop");
+    const legendClose = document.getElementById("legendClose");
+    const mobileListToggle = document.getElementById("mobileListToggle");
+    const floatingList = document.getElementById("floatingList");
+
+    const map = L.map("map", {
+      zoomControl: true,
+      scrollWheelZoom: false
+    }).setView([DEFAULT_VIEW.lat, DEFAULT_VIEW.lng], DEFAULT_VIEW.zoom);
+
+    let tileLayer = null;
+
+    function enableFallbackMapNote() {
+      mapFallbackNote.classList.add("is-visible");
+    }
+
+    function setupTiles() {
+      tileLayer = L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
+        maxZoom: 20,
+        subdomains: "abcd",
+        attribution: "&copy; OpenStreetMap contributors &copy; CARTO"
+      });
+
+      tileLayer.on("tileerror", () => {
+        if (tileLayer) {
+          map.removeLayer(tileLayer);
+          tileLayer = null;
+        }
+        enableFallbackMapNote();
+      });
+
+      tileLayer.addTo(map);
+    }
+
+    setupTiles();
+
+    const markersLayer = L.layerGroup().addTo(map);
+    const markerInstances = new Map();
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#39;");
+    }
+
+    function createMarkerIcon(isActive = false) {
+      const fill = isActive ? "#1d68ad" : "#2f7ec7";
+      const ring = isActive ? "#badaff" : "#d8ebff";
+      return L.divIcon({
+        className: "",
+        html: `
+          <div style="
+            width: 22px;
+            height: 22px;
+            border-radius: 999px;
+            background: ${fill};
+            border: 4px solid ${ring};
+            box-shadow: 0 10px 18px rgba(20, 59, 103, 0.25);
+          "></div>
+        `,
+        iconSize: [22, 22],
+        iconAnchor: [11, 11],
+        popupAnchor: [0, -12]
+      });
+    }
+
+    function getSearchableText(location) {
+      return [
+        location.name,
+        location.address,
+        location.city,
+        location.state,
+        location.zip,
+        location.phone,
+        location.email,
+        location.description,
+        ...(location.services || [])
+      ].join(" ").toLowerCase();
+    }
+
+    function parseParams() {
+      const params = new URLSearchParams(window.location.search);
+      return {
+        q: params.get("q") || "",
+        stateParam: params.get("state") || "",
+        selected: params.get("selected") || "",
+        lat: params.get("lat"),
+        lng: params.get("lng"),
+        zoom: params.get("zoom")
+      };
+    }
+
+    function updateUrl() {
+      const params = new URLSearchParams();
+
+      if (state.query) {
+        params.set("q", state.query);
+      }
+
+      const selectedLocation = LOCATIONS.find(location => location.id === state.selectedId);
+      if (selectedLocation) {
+        params.set("selected", selectedLocation.id);
+        params.set("state", selectedLocation.state);
+      }
+
+      const center = map.getCenter();
+      params.set("lat", center.lat.toFixed(5));
+      params.set("lng", center.lng.toFixed(5));
+      params.set("zoom", String(map.getZoom()));
+
+      const qs = params.toString();
+      const nextUrl = qs ? `${window.location.pathname}?${qs}` : window.location.pathname;
+      history.replaceState({}, "", nextUrl);
+    }
+
+    function filterLocations() {
+      const query = state.query.trim().toLowerCase();
+      let result = [...LOCATIONS];
+
+      if (query) {
+        result = result.filter(location => getSearchableText(location).includes(query));
+      }
+
+      if (state.selectedId) {
+        const selected = LOCATIONS.find(location => location.id === state.selectedId);
+        if (selected && !result.some(location => location.id === selected.id)) {
+          result = [selected, ...result];
+        }
+      }
+
+      const unique = [];
+      const seen = new Set();
+
+      result.forEach(location => {
+        if (!seen.has(location.id)) {
+          seen.add(location.id);
+          unique.push(location);
+        }
+      });
+
+      state.filteredLocations = unique;
+    }
+
+    function formatAddress(location) {
+      return `${location.address}, ${location.city}, ${location.state} ${location.zip}`;
+    }
+
+    function milesBetween(lat1, lng1, lat2, lng2) {
+      const toRad = value => value * Math.PI / 180;
+      const earthRadiusMiles = 3958.8;
+      const dLat = toRad(lat2 - lat1);
+      const dLng = toRad(lng2 - lng1);
+      const a =
+        Math.sin(dLat / 2) ** 2 +
+        Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+      return 2 * earthRadiusMiles * Math.asin(Math.sqrt(a));
+    }
+
+    function getDistanceSource() {
+      if (state.userCoords) {
+        return {
+          lat: state.userCoords.lat,
+          lng: state.userCoords.lng,
+          label: "based on your browser geolocation"
+        };
+      }
+
+      const center = map.getCenter();
+      return {
+        lat: center.lat,
+        lng: center.lng,
+        label: "based on the current map center"
+      };
+    }
+
+    function getNearestLocations(limit = 3) {
+      const source = getDistanceSource();
+      return [...LOCATIONS]
+        .map(location => ({
+          ...location,
+          distance: milesBetween(source.lat, source.lng, location.lat, location.lng)
+        }))
+        .sort((a, b) => a.distance - b.distance)
+        .slice(0, limit);
+    }
+
+    function panMapToLocation(location, options = {}) {
+      if (!location) {
+        return;
+      }
+
+      const zoom = Math.max(map.getZoom(), 10);
+      const duration = options.duration ?? 0.5;
+
+      map.setZoom(zoom);
+
+      requestAnimationFrame(() => {
+        const targetPoint = map.project([location.lat, location.lng], map.getZoom());
+        const mapSize = map.getSize();
+        const isMobile = window.innerWidth <= 760;
+        const leftPanelOffset = isMobile ? 0 : 170;
+        const topBarOffset = isMobile ? 80 : 70;
+        const adjustedPoint = L.point(
+          targetPoint.x - leftPanelOffset,
+          targetPoint.y - topBarOffset
+        );
+        const adjustedLatLng = map.unproject(adjustedPoint, map.getZoom());
+
+        map.panTo(adjustedLatLng, {
+          animate: true,
+          duration
+        });
+      });
+    }
+
+    function selectLocation(id, options = {}) {
+      state.selectedId = id;
+      filterLocations();
+      renderAll();
+      const location = LOCATIONS.find(item => item.id === id);
+
+      if (location) {
+        panMapToLocation(location, { duration: 0.5 });
+      }
+
+      const marker = markerInstances.get(id);
+      if (marker) {
+        setTimeout(() => marker.openPopup(), 320);
+      }
+
+      updateUrl();
+      closeMobileList();
+    }
+
+    function clearSelected() {
+      state.selectedId = null;
+      filterLocations();
+      renderAll();
+      updateUrl();
+    }
+
+    function renderMarkerSet() {
+      markersLayer.clearLayers();
+      markerInstances.clear();
+
+      state.filteredLocations.forEach(location => {
+        const isActive = location.id === state.selectedId;
+        const marker = L.marker([location.lat, location.lng], {
+          icon: createMarkerIcon(isActive)
+        });
+
+        marker.bindPopup(`
+          <div>
+            <strong>${escapeHtml(location.name)}</strong><br>
+            ${escapeHtml(formatAddress(location))}<br>
+            <span style="color:#5f7b96;">${escapeHtml(location.phone)}</span>
+          </div>
+        `);
+
+        marker.on("click", () => {
+          selectLocation(location.id);
+        });
+
+        marker.addTo(markersLayer);
+        markerInstances.set(location.id, marker);
+      });
+    }
+
+    function renderList() {
+      const html = state.filteredLocations.length
+        ? state.filteredLocations.map(location => {
+          const isActive = location.id === state.selectedId;
+          return `
+              <article class="location-item ${isActive ? "is-active" : ""}" data-location-id="${escapeHtml(location.id)}">
+                <h3>${escapeHtml(location.name)}</h3>
+                <div class="location-row">${escapeHtml(formatAddress(location))}</div>
+                <div class="location-row"><strong>Phone:</strong> ${escapeHtml(location.phone)}</div>
+                <div class="location-row"><strong>Hours:</strong> ${escapeHtml(location.hours)}</div>
+                <div class="location-tags">
+                  ${(location.services || []).slice(0, 3).map(service => `<span class="tag">${escapeHtml(service)}</span>`).join("")}
+                </div>
+              </article>
+            `;
+        }).join("")
+        : `<div class="empty-state">No locations match the current search. Try another name, city, address, or ZIP.</div>`;
+
+      listScroll.innerHTML = html;
+
+      listScroll.querySelectorAll("[data-location-id]").forEach(node => {
+        node.addEventListener("click", () => {
+          selectLocation(node.getAttribute("data-location-id"));
+        });
+      });
+
+      resultsCountBadge.textContent = `${state.filteredLocations.length} result${state.filteredLocations.length === 1 ? "" : "s"}`;
+    }
+
+    function createCardHtml(location, extra = {}) {
+      const isActive = location.id === state.selectedId;
+      const distanceHtml = typeof extra.distance === "number"
+        ? `<span class="distance">${extra.distance.toFixed(1)} mi away</span>`
+        : "";
+      const featuredHtml = location.featured ? `<span class="tag">Featured</span>` : "";
+      return `
+        <article class="card ${isActive ? "is-active" : ""}" data-location-id="${escapeHtml(location.id)}">
+          <h3 class="card-title">${escapeHtml(location.name)}</h3>
+          <p class="card-line">${escapeHtml(formatAddress(location))}</p>
+          <p class="card-line">${escapeHtml(location.description)}</p>
+          <div class="location-tags">
+            ${featuredHtml}
+            ${(location.services || []).slice(0, 3).map(service => `<span class="tag">${escapeHtml(service)}</span>`).join("")}
+          </div>
+          <div class="card-foot">
+            ${distanceHtml}
+            <span class="muted">${escapeHtml(location.phone)}</span>
+          </div>
+        </article>
+      `;
+    }
+
+    function attachCardEvents(scope) {
+      scope.querySelectorAll("[data-location-id]").forEach(node => {
+        node.addEventListener("click", () => {
+          selectLocation(node.getAttribute("data-location-id"));
+        });
+      });
+    }
+
+    function renderNearest() {
+      const nearest = getNearestLocations(3);
+      const source = state.userCoords ? "your browser geolocation" : "the current map center";
+      nearestSubtitle.textContent = `The 3 closest locations are calculated from ${source}.`;
+
+      if (!nearest.length) {
+        nearestGrid.innerHTML = `<div class="empty-state">Nearest locations will appear here when location data is available.</div>`;
+        return;
+      }
+
+      nearestGrid.innerHTML = nearest.map(location => createCardHtml(location, { distance: location.distance })).join("");
+      attachCardEvents(nearestGrid);
+    }
+
+    function renderOverview() {
+      const hasFilters = Boolean(state.query || state.selectedId || new URLSearchParams(window.location.search).toString());
+      const locationsToShow = hasFilters ? state.filteredLocations : LOCATIONS;
+
+      overviewSubtitle.textContent = hasFilters
+        ? "Showing filtered or selected locations from the current URL and search state."
+        : "All locations are shown by default because no filters are active.";
+
+      if (!locationsToShow.length) {
+        allLocationsGrid.innerHTML = `<div class="empty-state">No locations available for the current state.</div>`;
+        return;
+      }
+
+      allLocationsGrid.innerHTML = locationsToShow.map(location => createCardHtml(location)).join("");
+      attachCardEvents(allLocationsGrid);
+    }
+
+    function renderGeolocationStatus() {
+      geoStatusDot.classList.toggle("is-on", state.geolocationActive);
+      geoStatusText.textContent = state.geolocationActive ? "Geolocation on" : "Geolocation off";
+    }
+
+    function renderAll() {
+      renderMarkerSet();
+      renderList();
+      renderNearest();
+      renderOverview();
+      renderGeolocationStatus();
+    }
+
+    function fitMapToFilteredLocations() {
+      if (!state.filteredLocations.length) {
+        return;
+      }
+
+      if (state.selectedId) {
+        const selected = LOCATIONS.find(location => location.id === state.selectedId);
+        if (selected) {
+          map.setView([selected.lat, selected.lng], Math.max(map.getZoom(), 10));
+          return;
+        }
+      }
+
+      if (state.filteredLocations.length === 1) {
+        const location = state.filteredLocations[0];
+        map.setView([location.lat, location.lng], 10);
+        return;
+      }
+
+      const bounds = L.latLngBounds(state.filteredLocations.map(location => [location.lat, location.lng]));
+      map.fitBounds(bounds, { padding: [60, 60] });
+    }
+
+    function applyStateFromUrl() {
+      const params = parseParams();
+      state.query = params.q;
+      searchInput.value = params.q;
+
+      if (params.selected && LOCATIONS.some(location => location.id === params.selected)) {
+        state.selectedId = params.selected;
+      }
+
+      filterLocations();
+      renderAll();
+
+      const lat = Number(params.lat);
+      const lng = Number(params.lng);
+      const zoom = Number(params.zoom);
+
+      if (!Number.isNaN(lat) && !Number.isNaN(lng) && !Number.isNaN(zoom)) {
+        map.setView([lat, lng], zoom);
+      } else if (state.selectedId || state.query) {
+        fitMapToFilteredLocations();
+      } else {
+        map.setView([DEFAULT_VIEW.lat, DEFAULT_VIEW.lng], DEFAULT_VIEW.zoom);
+      }
+
+      state.initializedFromUrl = true;
+    }
+
+    function runSearch() {
+      state.query = searchInput.value.trim();
+      filterLocations();
+      renderAll();
+      fitMapToFilteredLocations();
+      updateUrl();
+    }
+
+    function debounce(fn, wait = 220) {
+      let timer = null;
+      return (...args) => {
+        clearTimeout(timer);
+        timer = setTimeout(() => fn(...args), wait);
+      };
+    }
+
+    function requestGeolocation() {
+      if (!navigator.geolocation) {
+        alert("Browser geolocation is not supported in this browser.");
+        return;
+      }
+
+      useLocationBtn.disabled = true;
+      useLocationBtn.textContent = "Detecting...";
+
+      navigator.geolocation.getCurrentPosition(
+        position => {
+          state.userCoords = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude
+          };
+          state.geolocationActive = true;
+          map.setView([state.userCoords.lat, state.userCoords.lng], 9, { animate: true });
+          renderAll();
+          updateUrl();
+          useLocationBtn.disabled = false;
+          useLocationBtn.textContent = "Use my location";
+        },
+        error => {
+          console.error(error);
+          state.geolocationActive = false;
+          renderGeolocationStatus();
+          useLocationBtn.disabled = false;
+          useLocationBtn.textContent = "Use my location";
+          alert("Could not access browser geolocation.");
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 60000
+        }
+      );
+    }
+
+    function resetAll() {
+      state.query = "";
+      state.selectedId = null;
+      state.userCoords = null;
+      state.geolocationActive = false;
+      searchInput.value = "";
+      filterLocations();
+      renderAll();
+      map.setView([DEFAULT_VIEW.lat, DEFAULT_VIEW.lng], DEFAULT_VIEW.zoom);
+      history.replaceState({}, "", window.location.pathname);
+      closeMobileList();
+    }
+
+    function openLegend() {
+      legendPanel.classList.add("is-open");
+      legendBackdrop.classList.add("is-open");
+      legendPanel.setAttribute("aria-hidden", "false");
+    }
+
+    function closeLegend() {
+      legendPanel.classList.remove("is-open");
+      legendBackdrop.classList.remove("is-open");
+      legendPanel.setAttribute("aria-hidden", "true");
+    }
+
+    function toggleMobileList() {
+      floatingList.classList.toggle("is-open-mobile");
+    }
+
+    function closeMobileList() {
+      floatingList.classList.remove("is-open-mobile");
+    }
+
+    searchInput.addEventListener("input", debounce(runSearch, 220));
+    useLocationBtn.addEventListener("click", requestGeolocation);
+    resetBtn.addEventListener("click", resetAll);
+    gearButton.addEventListener("click", openLegend);
+    legendClose.addEventListener("click", closeLegend);
+    legendBackdrop.addEventListener("click", closeLegend);
+    mobileListToggle.addEventListener("click", toggleMobileList);
+
+    window.addEventListener("popstate", () => {
+      applyStateFromUrl();
+    });
+
+    map.on("moveend", () => {
+      if (state.initializedFromUrl) {
+        renderNearest();
+        updateUrl();
+      }
+    });
+
+    document.addEventListener("keydown", event => {
+      if (event.key === "Escape") {
+        closeLegend();
+        closeMobileList();
+      }
+    });
+
+    applyStateFromUrl();
+  </script>
+</body>
+
+</html>
